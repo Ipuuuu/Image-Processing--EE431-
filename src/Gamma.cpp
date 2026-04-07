@@ -25,7 +25,7 @@ int main()
         {
             float normalized = ((float)I(x, y)) / max_intensity;
             // Ox,y = (2^B - 1) * (I(x, y) / (2^B - 1))^γ
-            O(x, y) = std::pow((normalized / max_intensity), gamma) * max_intensity;
+            O(x, y) = std::pow(normalized, gamma) * max_intensity;
         }
     }
 
