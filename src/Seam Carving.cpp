@@ -121,36 +121,34 @@ int main()
             seamAccum.Save("images/seams_insertion_debug.png");
         }
 
-        // simultaneous insertion
-        ColorImage result(width + k, height);
-        for (int y = 0; y < height; y++)
+        //  insertion
+        for (int s = 0; s < (int)seamList.size(); s++)
         {
-            std::vector<int> cols;
-            for (auto &s : seamList)
-                cols.push_back(s[y]);
-            std::sort(cols.begin(), cols.end());
+            int newWidth = width + 1;
+            ColorImage result(newWidth, height);
 
-            int dstX = 0;
-            int seamIdx = 0;
-            for (int srcX = 0; srcX < width; srcX++)
+            for (int y = 0; y < height; y++)
             {
-                result(dstX++, y) = i(srcX, y);
-                // insert all seams that fall at this srcX
-                while (seamIdx < (int)cols.size() && cols[seamIdx] == srcX)
+                int offset = 0;
+                for (int prev = 0; prev < s; prev++)
                 {
-                    RGBA left = i(srcX, y);
-                    RGBA right = i.Get(srcX + 1, y);
-                    result(dstX++, y) = RGBA(
-                        (left.r + right.r) / 2,
-                        (left.g + right.g) / 2,
-                        (left.b + right.b) / 2);
-                    seamIdx++;
+                    if (seamList[prev][y] < seamList[s][y])
+                        offset++;
                 }
-            }
-        }
+                int seamX = seamList[s][y] + offset;
+                seamX = std::min(seamX, width - 1);
 
-        i = result;
-        width = width + k;
+                for (int x = 0; x < seamX; x++)
+                    result(x, y) = i(x, y);
+                RGBA left = i(seamX, y);
+                RGBA right = i.Get(seamX + 1, y);
+                result(seamX, y) = RGBA((left.r + right.r) / 2, (left.g + right.g) / 2, (left.b + right.b) / 2);
+                for (int x = seamX; x < width; x++)
+                    result(x + 1, y) = i(x, y);
+            }
+            i = result;
+            width = newWidth;
+        }
     }
 
     std::vector<float> M(width * height);
