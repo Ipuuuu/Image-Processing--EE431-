@@ -32,6 +32,122 @@ int main()
     int iteration = 0;
 
     std::vector<float> energy(width * height);
+    std::vector<std::vector<int>> seamList;
+
+    if (!shrinkWidth && width != targetWidth)
+    {
+        int k = abs(targetWidth - width);
+
+        // compute initial energy once
+        GrayscaleImage g(i);
+        energy.resize(width * height);
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                float Gx = (1) * g.Get(car(x - 1, width - 1), car(y - 1, height - 1)) + (-1) * g.Get(car(x + 1, width - 1), car(y - 1, height - 1)) + (2) * g.Get(car(x - 1, width - 1), car(y, height - 1)) + (-2) * g.Get(car(x + 1, width - 1), car(y, height - 1)) + (1) * g.Get(car(x - 1, width - 1), car(y + 1, height - 1)) + (-1) * g.Get(car(x + 1, width - 1), car(y + 1, height - 1));
+                float Gy = (1) * g.Get(car(x - 1, width - 1), car(y - 1, height - 1)) + (2) * g.Get(car(x, width - 1), car(y - 1, height - 1)) + (1) * g.Get(car(x + 1, width - 1), car(y - 1, height - 1)) + (-1) * g.Get(car(x - 1, width - 1), car(y + 1, height - 1)) + (-2) * g.Get(car(x, width - 1), car(y + 1, height - 1)) + (-1) * g.Get(car(x + 1, width - 1), car(y + 1, height - 1));
+                energy[y * width + x] = abs(Gx) + abs(Gy);
+            }
+        }
+
+        // find k seams on original image
+        std::vector<float> tempEnergy = energy;
+        std::vector<float> tempM(width * height);
+
+        for (int s = 0; s < k; s++)
+        {
+            // DP
+            for (int x = 0; x < width; x++)
+                tempM[x] = tempEnergy[x];
+            for (int y = 1; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    float left = (x > 0) ? tempM[(y - 1) * width + (x - 1)] : FLT_MAX;
+                    float up = tempM[(y - 1) * width + x];
+                    float right = (x < width - 1) ? tempM[(y - 1) * width + (x + 1)] : FLT_MAX;
+                    tempM[y * width + x] = tempEnergy[y * width + x] + std::min({left, up, right});
+                }
+            }
+
+            // find min in last row
+            int minCol = 0;
+            float minVal = tempM[(height - 1) * width];
+            for (int x = 1; x < width; x++)
+                if (tempM[(height - 1) * width + x] < minVal)
+                {
+                    minVal = tempM[(height - 1) * width + x];
+                    minCol = x;
+                }
+
+            // backtrack
+            std::vector<int> currentSeam(height);
+            currentSeam[height - 1] = minCol;
+            for (int y = height - 2; y >= 0; y--)
+            {
+                int prevCol = currentSeam[y + 1];
+                int bestCol = prevCol;
+                float bestVal = tempM[y * width + prevCol];
+                if (prevCol > 0 && tempM[y * width + (prevCol - 1)] < bestVal)
+                {
+                    bestVal = tempM[y * width + (prevCol - 1)];
+                    bestCol = prevCol - 1;
+                }
+                if (prevCol < width - 1 && tempM[y * width + (prevCol + 1)] < bestVal)
+                {
+                    bestVal = tempM[y * width + (prevCol + 1)];
+                    bestCol = prevCol + 1;
+                }
+                currentSeam[y] = bestCol;
+            }
+
+            seamList.push_back(currentSeam);
+
+            // block this seam from being picked again
+            for (int y = 0; y < height; y++)
+                tempEnergy[y * width + currentSeam[y]] = FLT_MAX;
+        }
+
+        // draw all seams on seamAccum for debug
+        if (showSeams)
+        {
+            for (int s = 0; s < (int)seamList.size(); s += std::max(1, k / 20))
+            {
+                for (int y = 0; y < height; y++)
+                    seamAccum(seamList[s][y], y) = RGBA(0, 255, 0, 255); // green for insertion seams
+            }
+            seamAccum.Save("images/seams_insertion_debug.png");
+        }
+
+        // simultaneous insertion
+        ColorImage result(width + k, height);
+        for (int y = 0; y < height; y++)
+        {
+            std::vector<int> cols;
+            for (auto &s : seamList)
+                cols.push_back(s[y]);
+            std::sort(cols.begin(), cols.end());
+
+            int srcX = 0, dstX = 0, seamIdx = 0;
+            while (srcX < width)
+            {
+                result(dstX++, y) = i(srcX, y);
+                if (seamIdx < (int)cols.size() && srcX == cols[seamIdx])
+                {
+                    RGBA left = i(srcX, y);
+                    RGBA right = i.Get(srcX + 1, y);
+                    result(dstX++, y) = RGBA((left.r + right.r) / 2, (left.g + right.g) / 2, (left.b + right.b) / 2);
+                    seamIdx++;
+                }
+                srcX++;
+            }
+        }
+
+        i = result;
+        width = width + k;
+    }
+
     std::vector<float> M(width * height);
     std::vector<int> seam(height);
 
