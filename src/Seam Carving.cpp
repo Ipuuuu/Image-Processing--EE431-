@@ -67,7 +67,8 @@ int main()
                     float left = (x > 0) ? tempM[(y - 1) * width + (x - 1)] : FLT_MAX;
                     float up = tempM[(y - 1) * width + x];
                     float right = (x < width - 1) ? tempM[(y - 1) * width + (x + 1)] : FLT_MAX;
-                    tempM[y * width + x] = tempEnergy[y * width + x] + std::min({left, up, right});
+                    float minParent = std::min({left, up, right});
+                    tempM[y * width + x] = (minParent >= FLT_MAX / 2) ? FLT_MAX : tempEnergy[y * width + x] + minParent;
                 }
             }
 
@@ -141,6 +142,10 @@ int main()
                     seamIdx++;
                 }
                 srcX++;
+            }
+            while (dstX < width + k)
+            {
+                result(dstX++, y) = i(srcX < width ? srcX++ : width - 1, y);
             }
         }
 
