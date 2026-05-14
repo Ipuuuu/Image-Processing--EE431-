@@ -130,22 +130,22 @@ int main()
                 cols.push_back(s[y]);
             std::sort(cols.begin(), cols.end());
 
-            int srcX = 0, dstX = 0, seamIdx = 0;
-            while (srcX < width)
+            int dstX = 0;
+            int seamIdx = 0;
+            for (int srcX = 0; srcX < width; srcX++)
             {
                 result(dstX++, y) = i(srcX, y);
-                if (seamIdx < (int)cols.size() && srcX == cols[seamIdx])
+                // insert all seams that fall at this srcX
+                while (seamIdx < (int)cols.size() && cols[seamIdx] == srcX)
                 {
                     RGBA left = i(srcX, y);
                     RGBA right = i.Get(srcX + 1, y);
-                    result(dstX++, y) = RGBA((left.r + right.r) / 2, (left.g + right.g) / 2, (left.b + right.b) / 2);
+                    result(dstX++, y) = RGBA(
+                        (left.r + right.r) / 2,
+                        (left.g + right.g) / 2,
+                        (left.b + right.b) / 2);
                     seamIdx++;
                 }
-                srcX++;
-            }
-            while (dstX < width + k)
-            {
-                result(dstX++, y) = i(srcX < width ? srcX++ : width - 1, y);
             }
         }
 
